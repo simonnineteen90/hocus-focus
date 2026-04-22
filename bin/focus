@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+/**
+ * Focus CLI entry point.
+ * 
+ * Command-line interface for the distraction-blocker application.
+ * Routes user commands (start, stop, status) to their handlers via Commander.js.
+ * Each command has built-in error handling that displays errors and sets exit code on failure.
+ * 
+ * Usage:
+ *   focus start [--apps Slack,Teams] [--duration 30]
+ *   focus stop [--force]
+ *   focus status
+ * 
+ * @module bin/focus
+ */
+
+import { program } from 'commander';
+import { startCommand } from '../src/commands/start.js';
+import { stopCommand } from '../src/commands/stop.js';
+import { statusCommand } from '../src/commands/status.js';
+import { showError } from '../src/display.js';
+
+program
+  .name('focus')
+  .description('Block distracting desktop apps to stay focused')
+  .version('1.0.0');
+
+program
+  .command('start')
+  .description('Start a focus session')
+  .option('--apps <apps>', 'Comma-separated list of apps to block')
+  .option('--duration <minutes>', 'Session duration in minutes', '25')
+  .action(async (options) => {
+    try {
+      await startCommand(options);
+    } catch (e) {
+      showError(e.message);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('stop')
+  .description('Stop the active focus session')
+  .option('--force', 'Skip confirmation countdown')
+  .action(async (options) => {
+    try {
+      await stopCommand(options);
+    } catch (e) {
+      showError(e.message);
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('status')
+  .description('Show the current focus session status')
+  .action(() => {
+    try {
+      statusCommand();
+    } catch (e) {
+      showError(e.message);
+      process.exitCode = 1;
+    }
+  });
+
+program.parse();

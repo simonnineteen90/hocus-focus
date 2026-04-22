@@ -1,0 +1,4 @@
+{
+  "defaultApps": ["Slack", "Teams", "Discord"],
+  "confirmationDelaySecs": 10
+}

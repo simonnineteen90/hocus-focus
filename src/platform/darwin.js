@@ -1,0 +1,59 @@
+/**
+ * macOS-specific process listing adapter.
+ * Uses `ps -axo pid,comm` to enumerate all running processes.
+ * Normalizes process names by stripping .app extensions (e.g., "Slack.app" → "slack").
+ * @module platform/darwin
+ * @platform darwin
+ */
+
+import { execFileSync } from 'child_process';
+
+/**
+ * Lists all running processes on macOS.
+ * Executes `ps -axo pid,comm` and parses output into array of {pid, name} objects.
+ * Names are normalized (lowercased, .app stripped).
+ * 
+ * @returns {Array<{pid: number, name: string}>} Array of all running processes
+ */
+export function listProcesses() {
+  const output = execFileSync('ps', ['-axo', 'pid,comm'], { encoding: 'utf8' });
+  return parsePs(output);
+}
+
+/**
+ * Parses ps command output into {pid, name} objects.
+ * Skips header line, handles whitespace-separated columns.
+ * @private
+ * @param {string} output - Raw ps output
+ * @returns {Array<{pid: number, name: string}>} Parsed process list
+ */
+function parsePs(output) {
+  const lines = output.trim().split('\n').slice(1); // skip header
+  const result = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const spaceIdx = trimmed.indexOf(' ');
+    if (spaceIdx === -1) continue;
+    const pid = parseInt(trimmed.slice(0, spaceIdx), 10);
+    const comm = trimmed.slice(spaceIdx + 1).trim();
+    if (!isNaN(pid) && comm) {
+      result.push({ pid, name: normalise(comm) });
+    }
+  }
+  return result;
+}
+
+/**
+ * Normalizes a process name for consistent matching.
+ * Converts to lowercase, strips .app/.exe extensions, removes path prefixes.
+ * @param {string} name - Raw process name (e.g., '/Applications/Slack.app')
+ * @returns {string} Normalized name (e.g., 'slack')
+ */
+export function normalise(name) {
+  return name
+    .toLowerCase()
+    .replace(/\.app$/i, '')
+    .replace(/\.exe$/i, '')
+    .replace(/.*[/\\]/, '') // strip path
+    .trim();
+}
