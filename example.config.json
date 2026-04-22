@@ -1,4 +1,10 @@
 {
   "defaultApps": ["Slack", "Teams", "Discord"],
-  "confirmationDelaySecs": 10
+  "confirmationDelaySecs": 10,
+  "slack": {
+    "token": "xoxp-your-token-here",
+    "statusText": "🎯 focusing back in {{duration}}",
+    "statusEmoji": ":technologist:",
+    "restoreStatusOnStop": true
+  }
 }

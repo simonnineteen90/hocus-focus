@@ -12,10 +12,12 @@
 
 import { writeFileSync, unlinkSync } from 'fs';
 import { getPaths } from './paths.js';
-import { readSession, deleteSession } from './session.js';
+import { readSession, writeSession, deleteSession } from './session.js';
 import { releaseLock } from './lock.js';
 import { findProcesses, terminateProcess } from './process.js';
 import { log } from './logger.js';
+import { getSlackToken, restoreSlackStatus } from './slack.js';
+import { loadConfig } from './config.js';
 
 const sessionId = process.env.FOCUS_SESSION_ID;
 const token = process.env.FOCUS_TOKEN;
@@ -84,6 +86,30 @@ async function poll() {
 
   if (Date.now() >= new Date(session.endsAt).getTime()) {
     log('Session expired — unblocking apps');
+
+    // Restore Slack status before cleanup (timer-expired path only)
+    if (session.slackStatus?.set) {
+      let slackToken = null;
+      try {
+        slackToken = getSlackToken(loadConfig());
+      } catch { /* ignore config load errors */ }
+
+      if (slackToken) {
+        try {
+          await restoreSlackStatus(slackToken, session.slackStatus);
+          log('Slack status restored');
+        } catch (e) {
+          log(`Slack status restore failed: ${e.message}`);
+        } finally {
+          try {
+            writeSession({ ...session, slackStatus: null });
+          } catch (e) {
+            log(`Failed to clear slackStatus: ${e.message}`);
+          }
+        }
+      }
+    }
+
     await cleanup('timer expired');
     return;
   }
