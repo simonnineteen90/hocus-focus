@@ -17,8 +17,9 @@ import { readSession, writeSession, deleteSession } from '../session.js';
 import { acquireLock, releaseLock } from '../lock.js';
 import { findProcesses, terminateProcess } from '../process.js';
 import { getPaths } from '../paths.js';
-import { showSuccess, showError, showStatus } from '../display.js';
+import { showSuccess, showError, showStatus, showWarn } from '../display.js';
 import { SessionAlreadyActiveError } from '../errors.js';
+import { getSlackToken, getStatus, setStatus, interpolateStatusText } from '../slack.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const WATCHER_PATH = join(__dirname, '..', 'watcher.js');
@@ -140,6 +141,31 @@ export async function startCommand(options) {
       deleteSession();
       releaseLock();
       throw new Error('Watcher failed to start (handshake timeout). Check logs for details.');
+    }
+
+    // Slack status (non-fatal)
+    try {
+      const slackToken = getSlackToken(config);
+      if (slackToken) {
+        const prev = await getStatus(slackToken);
+        const statusText = interpolateStatusText(config.slack?.statusText, durationMinutes);
+        const statusEmoji = config.slack?.statusEmoji ?? ':technologist:';
+        const statusExpiration = Math.floor(new Date(endsAt).getTime() / 1000);
+        await setStatus(slackToken, { statusText, statusEmoji, statusExpiration });
+        // Only on success: persist slackStatus into the session file
+        const current = readSession();
+        writeSession({
+          ...current,
+          slackStatus: {
+            previousText: prev.statusText,
+            previousEmoji: prev.statusEmoji,
+            previousExpiration: prev.statusExpiration,
+            set: true,
+          },
+        });
+      }
+    } catch (e) {
+      showWarn(`Slack status update failed: ${e.message}`);
     }
 
     console.log('');
