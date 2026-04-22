@@ -1,4 +1,4 @@
-# focus — distraction blocker
+# hocus focus — distraction blocker
 
 A lightweight CLI tool for macOS and Linux that blocks distracting desktop applications for a set period. A background watcher daemon monitors and terminates blocked apps for the duration, even after the terminal is closed.
 
