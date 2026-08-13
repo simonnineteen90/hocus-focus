@@ -20,6 +20,17 @@ describe('config', () => {
     assert.ok(typeof config.confirmationDelaySecs === 'number');
   });
 
+  test('does not block Outlook by default so meeting reminders still fire', () => {
+    const config = loadConfig();
+    assert.ok(!config.defaultApps.some(a => a.toLowerCase() === 'outlook'));
+  });
+
+  test('provides a comms app list that includes Outlook', () => {
+    const config = loadConfig();
+    assert.ok(Array.isArray(config.commsApps));
+    assert.ok(config.commsApps.some(a => a.toLowerCase() === 'outlook'));
+  });
+
   test('creates config file on first load', () => {
     const { configFile } = getPaths();
     assert.ok(existsSync(configFile), 'config file should be created');

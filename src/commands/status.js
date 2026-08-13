@@ -16,7 +16,7 @@ export function statusCommand() {
     showWarn('Session is stale — watcher is not running. Run `focus stop --force` to clean up.');
   }
 
-  if (Date.now() >= new Date(session.endsAt).getTime()) {
+  if (session.endsAt && Date.now() >= new Date(session.endsAt).getTime()) {
     showWarn('Session has expired but was not cleaned up. Run `focus stop --force` to clean up.');
     return;
   }

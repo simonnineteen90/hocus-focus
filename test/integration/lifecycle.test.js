@@ -11,6 +11,9 @@ const binPath = join(__dirname, '..', '..', 'bin', 'focus');
 
 const SUPPORTED = platform() === 'darwin' || platform() === 'linux';
 
+// A deliberately unlaunchable, unmatchable app name so tests never touch the developer's real apps.
+const FAKE_APP = 'nonexistentapp123';
+
 function runFocus(args, env = {}) {
   return execFileSync(process.execPath, [binPath, ...args], {
     encoding: 'utf8',
@@ -35,6 +38,12 @@ describe('focus CLI lifecycle', { skip: !SUPPORTED }, () => {
     try { runFocus(['stop', '--force'], testEnv); } catch { /* ignore */ }
     rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  // Linux stores state under XDG_STATE_HOME/focus, macOS under HOME/.focus.
+  function sessionFileExists() {
+    return existsSync(join(tmpDir, 'focus', 'session.json'))
+      || existsSync(join(tmpDir, '.focus', 'session.json'));
+  }
 
   test('start creates session.json', () => {
     runFocus(['start', '--apps', 'nonexistentapp123', '--duration', '1'], testEnv);
@@ -97,4 +106,49 @@ describe('focus CLI lifecycle', { skip: !SUPPORTED }, () => {
       (e) => { assert.ok(e.status !== 0); return true; }
     );
   });
+
+  test('comms starts an open-ended session with no duration', () => {
+    const out = runFocus(['comms', '--apps', FAKE_APP], testEnv);
+    const plain = stripAnsi(out);
+    assert.ok(plain.includes('Comms mode on'), `Expected comms confirmation, got: ${plain}`);
+    assert.ok(plain.includes('no auto-close'), `Expected open-ended session, got: ${plain}`);
+  });
+
+  test('status reports comms mode', () => {
+    const plain = stripAnsi(runFocus(['status'], testEnv));
+    assert.ok(plain.includes('Comms mode active'), `Expected comms status, got: ${plain}`);
+    assert.ok(plain.includes('Apps open'), `Expected open-apps wording, got: ${plain}`);
+  });
+
+  test('start is rejected while comms mode is active', () => {
+    assert.throws(
+      () => runFocus(['start', '--apps', FAKE_APP, '--duration', '1'], testEnv),
+      (e) => { assert.ok(e.status !== 0); return true; }
+    );
+  });
+
+  test('stop ends comms mode without a countdown', async () => {
+    const plain = stripAnsi(runFocus(['stop'], testEnv));
+    assert.ok(plain.includes('Comms mode ended'), `Expected comms stop message, got: ${plain}`);
+    await new Promise(r => setTimeout(r, 1500));
+    assert.ok(!sessionFileExists(), 'session.json must be removed after stopping comms mode');
+  });
+
+  test('comms rejects an invalid duration', () => {
+    assert.throws(
+      () => runFocus(['comms', '--apps', FAKE_APP, '--duration', '481'], testEnv),
+      (e) => { assert.ok(e.status !== 0); return true; }
+    );
+  });
+
+  test('comms accepts a duration', () => {
+    const plain = stripAnsi(runFocus(['comms', '--apps', FAKE_APP, '--duration', '5'], testEnv));
+    assert.ok(plain.includes('Comms mode on for 5 minutes'), `Expected timed comms session, got: ${plain}`);
+    assert.ok(plain.includes('Time remaining'), `Expected a countdown, got: ${plain}`);
+    runFocus(['stop', '--force'], testEnv);
+  });
 });
+
+function stripAnsi(text) {
+  return text.replace(/\x1B\[[0-9;]*m/g, '');
+}

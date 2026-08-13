@@ -5,11 +5,7 @@
  * @module process
  */
 
-import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import { matchesApp } from './appMatch.js';
 
 let platform;
 if (process.platform === 'darwin') {
@@ -21,17 +17,18 @@ if (process.platform === 'darwin') {
 export const { normalise } = platform;
 
 /**
- * Finds all running processes matching an app name.
- * Normalizes the app name (lowercase, strips .app/.exe suffixes) and filters against running processes.
- * Returns an array of {pid, name} objects.
- * 
- * @param {string} appName - Application name to search for (e.g., 'Slack', 'Slack.app')
- * @returns {Array<{pid: number, name: string}>} Array of matching processes
+ * Finds all running processes belonging to an app.
+ * Matching is delegated to the appMatch module, which compares both the executable name and any
+ * `.app` bundle in the command path against the app name and its aliases. This catches apps whose
+ * binary is named differently from the app (Teams ships `MSTeams`) along with their helper processes.
+ *
+ * @param {string} appName - Application name to search for (e.g., 'Slack', 'Teams')
+ * @param {Object<string, string[]>} [aliases] - Extra aliases keyed by app name, from config
+ * @returns {Array<{pid: number, name: string, command: string}>} Array of matching processes
  */
-export function findProcesses(appName) {
-  const target = normalise(appName);
+export function findProcesses(appName, aliases = {}) {
   const all = platform.listProcesses();
-  return all.filter(p => p.name === target);
+  return all.filter(p => matchesApp(p, appName, aliases));
 }
 
 /**

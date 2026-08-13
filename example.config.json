@@ -1,4 +1,8 @@
 {
-  "defaultApps": ["Slack", "Teams", "Discord"],
+  "defaultApps": ["Slack", "Teams"],
+  "commsApps": ["Slack", "Teams", "Outlook"],
+  "appAliases": {
+    "teams": ["microsoft teams", "msteams"]
+  },
   "confirmationDelaySecs": 10
 }

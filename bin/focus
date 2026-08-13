@@ -8,6 +8,7 @@
  * 
  * Usage:
  *   focus start [--apps Slack,Teams] [--duration 30]
+ *   focus comms [--apps Slack,Teams,Outlook] [--duration 30]
  *   focus stop [--force]
  *   focus status
  * 
@@ -16,6 +17,7 @@
 
 import { program } from 'commander';
 import { startCommand } from '../src/commands/start.js';
+import { commsCommand } from '../src/commands/comms.js';
 import { stopCommand } from '../src/commands/stop.js';
 import { statusCommand } from '../src/commands/status.js';
 import { showError } from '../src/display.js';
@@ -27,7 +29,7 @@ program
 
 program
   .command('start')
-  .description('Start a focus session')
+  .description('Start a focus session, blocking distracting apps')
   .option('--apps <apps>', 'Comma-separated list of apps to block')
   .option('--duration <minutes>', 'Session duration in minutes', '25')
   .action(async (options) => {
@@ -40,8 +42,22 @@ program
   });
 
 program
+  .command('comms')
+  .description('Open your comms apps, optionally for a fixed window')
+  .option('--apps <apps>', 'Comma-separated list of apps to open')
+  .option('--duration <minutes>', 'Auto-close the apps after this many minutes')
+  .action(async (options) => {
+    try {
+      await commsCommand(options);
+    } catch (e) {
+      showError(e.message);
+      process.exitCode = 1;
+    }
+  });
+
+program
   .command('stop')
-  .description('Stop the active focus session')
+  .description('Stop the active session (focus or comms)')
   .option('--force', 'Skip confirmation countdown')
   .action(async (options) => {
     try {
@@ -54,7 +70,7 @@ program
 
 program
   .command('status')
-  .description('Show the current focus session status')
+  .description('Show the current session status')
   .action(() => {
     try {
       statusCommand();
