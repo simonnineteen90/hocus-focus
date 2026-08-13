@@ -9,7 +9,10 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { getPaths } from './paths.js';
 
 const DEFAULTS = {
-  defaultApps: ['Slack', 'Teams', 'Discord'],
+  // Outlook is deliberately absent: it stays open during focus sessions so meeting reminders still fire.
+  defaultApps: ['Slack', 'Teams'],
+  commsApps: ['Slack', 'Teams', 'Outlook'],
+  appAliases: {},
   confirmationDelaySecs: 10,
 };
 
@@ -19,7 +22,8 @@ const DEFAULTS = {
  * Returns a merged object: defaults are overridden by values from config.json if present.
  * If config file is malformed, silently returns defaults (graceful degradation).
  * 
- * @returns {Object} Configuration object with properties: defaultApps (array), confirmationDelaySecs (number)
+ * @returns {Object} Configuration object with properties: defaultApps (array), commsApps (array),
+ *   appAliases (object), confirmationDelaySecs (number)
  */
 export function loadConfig() {
   const { configFile } = getPaths();

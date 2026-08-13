@@ -13,7 +13,7 @@ import { execFileSync } from 'child_process';
  * Executes `ps -axo pid,comm` and parses output into array of {pid, name} objects.
  * Names are normalized (lowercased, .app stripped).
  * 
- * @returns {Array<{pid: number, name: string}>} Array of all running processes
+ * @returns {Array<{pid: number, name: string, command: string}>} Array of all running processes
  */
 export function listProcesses() {
   const output = execFileSync('ps', ['-axo', 'pid,comm'], { encoding: 'utf8' });
@@ -25,7 +25,7 @@ export function listProcesses() {
  * Skips header line, handles whitespace-separated columns.
  * @private
  * @param {string} output - Raw ps output
- * @returns {Array<{pid: number, name: string}>} Parsed process list
+ * @returns {Array<{pid: number, name: string, command: string}>} Parsed process list
  */
 function parsePs(output) {
   const lines = output.trim().split('\n').slice(1); // skip header
@@ -37,7 +37,7 @@ function parsePs(output) {
     const pid = parseInt(trimmed.slice(0, spaceIdx), 10);
     const comm = trimmed.slice(spaceIdx + 1).trim();
     if (!isNaN(pid) && comm) {
-      result.push({ pid, name: normalise(comm) });
+      result.push({ pid, name: normalise(comm), command: comm });
     }
   }
   return result;

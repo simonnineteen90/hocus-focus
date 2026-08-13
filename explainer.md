@@ -8,13 +8,14 @@ This guide explains how Node.js command-line applications work, using **distract
 
 1. [Node CLI Basics](#node-cli-basics)
 2. [Anatomy of a Node CLI App](#anatomy-of-a-node-cli-app)
-3. [How Distraction-Blocker Works](#how-distraction-blocker-works)
-4. [The Detached Daemon Pattern](#the-detached-daemon-pattern)
-5. [File-Based IPC (Inter-Process Communication)](#file-based-ipc)
-6. [Process Signals and Graceful Shutdown](#process-signals-and-graceful-shutdown)
-7. [Cross-Platform Considerations](#cross-platform-considerations)
-8. [Debugging Tips](#debugging-tips)
-9. [Common Pitfalls](#common-pitfalls)
+3. [Two Modes](#two-modes)
+4. [How Distraction-Blocker Works](#how-distraction-blocker-works)
+5. [The Detached Daemon Pattern](#the-detached-daemon-pattern)
+6. [File-Based IPC (Inter-Process Communication)](#file-based-ipc)
+7. [Process Signals and Graceful Shutdown](#process-signals-and-graceful-shutdown)
+8. [Cross-Platform Considerations](#cross-platform-considerations)
+9. [Debugging Tips](#debugging-tips)
+10. [Common Pitfalls](#common-pitfalls)
 
 ---
 
@@ -131,11 +132,32 @@ Handlers are **not** CLI-specific code—they're business logic that could be im
 Supporting modules handle cross-cutting concerns:
 - `lock.js` — filesystem-based locks (prevents concurrent sessions)
 - `session.js` — state persistence (reads/writes session JSON)
+- `sessionRunner.js` — shared session bootstrap for both modes (lock, spawn, handshake)
 - `process.js` — process discovery and termination
+- `appMatch.js` — matches app names to processes via aliases and `.app` bundle paths
+- `apps.js` — terminates every process belonging to a set of apps
+- `launcher.js` — opens apps (used by comms mode)
 - `paths.js` — platform-aware directory resolution
 - `config.js` — user configuration
 
 These modules know nothing about CLI output—they work with data structures. The CLI can display them however it wants.
+
+---
+
+## Two Modes
+
+The tool has an inverse pair of modes, both built on the same session machinery:
+
+| | `focus start` (block) | `focus comms` (open) |
+|---|---|---|
+| On start | Terminates the listed apps | Launches the listed apps |
+| While running | Polls every 3s and re-terminates | Passive — leaves the apps alone |
+| On end | Releases the session | Terminates the listed apps |
+| Duration | Required | Optional; omit to run until `focus stop` |
+
+Only one session can exist at a time — the same lock file enforces this for both modes. The session
+file records `mode: 'block' | 'comms'` so the watcher knows which behaviour to apply, and `endsAt` is
+`null` for an open-ended comms session.
 
 ---
 
@@ -493,7 +515,7 @@ Different platforms represent process names differently:
 - Binary path: `/usr/bin/slack`
 - Or just: `slack`
 
-Solution: normalize all names to lowercase, strip path, strip extensions:
+A first attempt is to normalize all names to lowercase, strip the path, and strip extensions:
 
 ```javascript
 export function normalise(name) {
@@ -511,6 +533,29 @@ normalise('/usr/bin/slack')           // → 'slack'
 normalise('Slack.app')                // → 'slack'
 normalise('slack')                    // → 'slack'
 ```
+
+**Why that isn't enough.** Normalization only compares the *leaf executable name*, and plenty of apps
+ship a binary whose name doesn't resemble the app:
+
+- Microsoft Teams runs `/Applications/Microsoft Teams.app/Contents/MacOS/MSTeams` → `msteams`
+- Outlook runs `/Applications/Microsoft Outlook.app/Contents/MacOS/Microsoft Outlook` → `microsoft outlook`
+
+So a config entry of `Teams` matched nothing at all, and Teams was never blocked. Electron apps make
+this worse by spawning helper, renderer and agent processes (`com.microsoft.teams2.agent`,
+`Microsoft Teams WebView Helper`) that survive and relaunch the app.
+
+`appMatch.js` fixes this by matching on two axes — the normalized leaf name *and* any `.app` bundle in
+the process's full command path — each compared against the app name plus a table of known aliases:
+
+```javascript
+matchesApp({ name: 'msteams', command: '/Applications/Microsoft Teams.app/Contents/MacOS/MSTeams' }, 'Teams');
+// → true, via the alias 'msteams'
+
+matchesApp({ name: 'chrome_crashpad_handler', command: '/Applications/Slack.app/Contents/Frameworks/...' }, 'Slack');
+// → true, via the 'Slack.app' bundle in the path
+```
+
+Bundle matching is what sweeps up the helper processes, since they all live inside the parent app bundle.
 
 ### XDG Compliance (Linux)
 

@@ -12,6 +12,7 @@ const { readSession, writeSession, deleteSession } = await import('../../src/ses
 
 const sampleSession = {
   version: 1,
+  mode: 'block',
   sessionId: 'test-id',
   startedAt: new Date().toISOString(),
   endsAt: new Date(Date.now() + 60000).toISOString(),
@@ -28,6 +29,12 @@ describe('session', () => {
     writeSession(sampleSession);
     const read = readSession();
     assert.deepStrictEqual(read, sampleSession);
+  });
+
+  test('round-trips an open-ended comms session', () => {
+    const commsSession = { ...sampleSession, mode: 'comms', endsAt: null, apps: ['Slack', 'Teams', 'Outlook'] };
+    writeSession(commsSession);
+    assert.deepStrictEqual(readSession(), commsSession);
   });
 
   test('deleteSession removes session file', () => {
