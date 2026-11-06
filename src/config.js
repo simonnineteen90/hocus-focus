@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { getPaths } from './paths.js';
 
 const DEFAULTS = {
-  defaultApps: ['Slack', 'Teams', 'Discord'],
+  defaultApps: ['Slack', 'MSTeams', 'Discord'],
   confirmationDelaySecs: 10,
 };
 
