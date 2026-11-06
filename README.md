@@ -28,11 +28,11 @@ npm install -g .       # installs `focus` globally
 ### Start a session
 
 ```bash
-# Block default apps (Slack, Teams, Discord) for 25 minutes
+# Block default apps (Slack, MSTeams, Discord) for 25 minutes
 focus start
 
 # Block specific apps for 45 minutes
-focus start --apps "Slack,Teams" --duration 45
+focus start --apps "Slack,MSTeams" --duration 45
 ```
 
 | Flag | Default | Description |
@@ -64,7 +64,7 @@ focus stop --force    # stop immediately
 
 ```json
 {
-  "defaultApps": ["Slack", "Teams", "Discord"],
+  "defaultApps": ["Slack", "MSTeams", "Discord"],
   "confirmationDelaySecs": 10
 }
 ```

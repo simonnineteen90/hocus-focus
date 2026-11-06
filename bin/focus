@@ -7,7 +7,7 @@
  * Each command has built-in error handling that displays errors and sets exit code on failure.
  * 
  * Usage:
- *   focus start [--apps Slack,Teams] [--duration 30]
+ *   focus start [--apps Slack,MSTeams] [--duration 30]
  *   focus stop [--force]
  *   focus status
  * 
